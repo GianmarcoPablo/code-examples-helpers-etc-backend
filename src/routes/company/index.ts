@@ -5,7 +5,7 @@ import { zValidator } from "@hono/zod-validator"
 import { v2 as cloudinary } from "cloudinary";
 import { createCompanySchema } from "../../schemas/company-create";
 import { config } from "../../lib/cloudinary";
-
+import { AuthMiddleware } from "../../middlewares/auth.middleware";
 
 interface CloudinaryValidation {
     maxSize: number; // en bytes
@@ -45,13 +45,16 @@ export class CompanyRoutes {
 
         const router = new Hono();
 
-
         router.post("/",
+            AuthMiddleware.isAuth,
             zValidator("form", createCompanySchema),
             async (c) => {
+                const defaultBanner = "https://res.cloudinary.com/dcij2jfka/image/upload/v1741186406/t9ua5i8g0ohrl8h1sgvb.jpg"
+
+                const defaultLogo = "https://res.cloudinary.com/dcij2jfka/image/upload/v1741186742/twdxc1ykqpgs4z3lrkvr.png"
+
                 const user = c.req.user!;
                 const data = c.req.valid('form')
-
                 const [logoUrl, bannerUrl] = await Promise.all([
                     this.processFile(data.logoUrl, "company-logos-testing"),
                     this.processFile(data.bannerUrl, "company-banners-testing")
@@ -68,8 +71,8 @@ export class CompanyRoutes {
                 const company = await prisma.company.create({
                     data: {
                         ...data,
-                        logoUrl: logoUrl,
-                        bannerUrl: bannerUrl,
+                        logoUrl: logoUrl || defaultLogo,
+                        bannerUrl: bannerUrl || defaultBanner,
                         userId: user.id,
                     }
                 })
@@ -78,55 +81,9 @@ export class CompanyRoutes {
             });
 
 
-        router.put("/:id",
-            zValidator("form", createCompanySchema),
-            async (c) => {
-                const user = c.req.user!;
-                const companyId = c.req.param("id");
-                const data = c.req.valid('form');
-
-                // Buscar la compañía en la base de datos
-                const existingCompany = await prisma.company.findFirst({
-                    where: {
-                        id: companyId,
-                        userId: user.id,
-                    },
-                });
-
-                if (!existingCompany) {
-                    return c.json({ message: "Compañía no encontrada o no autorizada" }, 404);
-                }
-
-                if (existingCompany.userId !== user.id) {
-                    return c.json({ message: "No autorizado para actualizar esta compañía" }, 403);
-                }
-
-                // Proceso de actualización de imágenes
-                const [newLogoUrl, newBannerUrl] = await Promise.all([
-                    this.updateFile(data.logoUrl, existingCompany.logoUrl, "company-logos-testing"),
-                    this.updateFile(data.bannerUrl, existingCompany.bannerUrl, "company-banners-testing")
-                ]);
-
-                // Actualizar los datos en la base de datos
-                const updatedCompany = await prisma.company.update({
-                    where: { id: companyId },
-                    data: {
-                        ...data,
-                        logoUrl: newLogoUrl || existingCompany.logoUrl,
-                        bannerUrl: newBannerUrl || existingCompany.bannerUrl,
-                    }
-                });
-
-                return c.json(updatedCompany);
-            }
-        );
 
         return router
     }
-
-
-
-
 
     static async processFile(file: File | undefined, folder: string) {
         if (!file) return null;

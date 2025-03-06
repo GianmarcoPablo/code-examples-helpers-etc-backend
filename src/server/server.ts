@@ -14,7 +14,7 @@ export class Server {
     private readonly routes: Hono
 
     constructor(options: Options) {
-        const { port = 5000, routes } = options
+        const { port = 8000, routes } = options
         this.port = port
         this.routes = routes
     }
@@ -52,7 +52,7 @@ export class Server {
 
 
         const bunServer = Bun.serve({
-            port: this.port,
+            port: 8000,
             fetch: this.app.fetch, // Hono's `fetch` method handles requests
             error: (err) => {
                 console.error('Server error:', err)

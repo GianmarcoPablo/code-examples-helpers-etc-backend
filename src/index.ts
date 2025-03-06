@@ -9,7 +9,7 @@ import { Server } from './server/server'
 async function main() {
 
   const options = {
-    port: 5000,
+    port: 8000,
     routes: AppRoutes.routes
   }
 

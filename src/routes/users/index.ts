@@ -13,13 +13,13 @@ export class UsersRoutes {
 
 
         router.post("/register",
-            zValidator("form", z.object({
+            zValidator("json", z.object({
                 name: z.string().min(3).max(50),
                 email: z.string().email(),
                 password: z.string().min(6).max(50),
             })),
             async (c) => {
-                const data = c.req.valid('form')
+                const data = c.req.valid('json')
                 const existingUser = await prisma.user.findUnique({ where: { email: data.email } })
                 if (existingUser) return c.json({ message: "User already exists" }, 400)
                 const hashedPassword = await HashPasswordService.hash(data.password)
@@ -36,12 +36,12 @@ export class UsersRoutes {
             });
 
 
-        router.post('/login', zValidator("form", z.object({
+        router.post('/login', zValidator("json", z.object({
             email: z.string().email(),
             password: z.string().min(6).max(50),
         })),
             async (c) => {
-                const data = c.req.valid('form')
+                const data = c.req.valid('json')
                 const existingUser = await prisma.user.findUnique({ where: { email: data.email } })
                 if (!existingUser) return c.json({ message: "User not found" }, 400)
                 const isPasswordValid = await HashPasswordService.compare(data.password, existingUser.password)
