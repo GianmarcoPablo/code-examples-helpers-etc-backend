@@ -80,7 +80,19 @@ export class CompanyRoutes {
                 return c.json(company)
             });
 
+        router.get("/one-company-of-user/:id",
+            AuthMiddleware.isAuth,
+            async (c) => {
+                const user = c.req.user!;
+                const id = c.req.param("id")
+                const company = await prisma.company.findUnique({ where: { id, userId: user.id } })
+                return c.json(company)
+            })
 
+        router.get("/", async (c) => {
+            const companies = await prisma.company.findMany()
+            return c.json(companies)
+        })
 
         return router
     }
