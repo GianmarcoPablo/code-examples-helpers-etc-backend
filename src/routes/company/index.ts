@@ -29,17 +29,19 @@ const MAX_COMPANIES = {
     premium: 4,
 };
 
+cloudinary.config({
+    cloud_name: config.cloudinary.cloud_name,
+    api_key: config.cloudinary.api_key,
+    api_secret: config.cloudinary.api_secret
+});
+
+console.log({ name: config.cloudinary.cloud_name, api_key: config.cloudinary.api_key, api_secret: config.cloudinary.api_secret })
+
 export class CompanyRoutes {
 
     constructor(
 
-    ) {
-        cloudinary.config({
-            cloud_name: config.cloudinary.cloud_name,
-            api_key: config.cloudinary.api_key,
-            api_secret: config.cloudinary.api_secret
-        });
-    }
+    ) { }
 
     static get routes(): Hono {
 
@@ -49,35 +51,39 @@ export class CompanyRoutes {
             AuthMiddleware.isAuth,
             zValidator("form", createCompanySchema),
             async (c) => {
-                const defaultBanner = "https://res.cloudinary.com/dcij2jfka/image/upload/v1741186406/t9ua5i8g0ohrl8h1sgvb.jpg"
+                try {
+                    const defaultBanner = "https://res.cloudinary.com/dcij2jfka/image/upload/v1741186406/t9ua5i8g0ohrl8h1sgvb.jpg"
 
-                const defaultLogo = "https://res.cloudinary.com/dcij2jfka/image/upload/v1741186742/twdxc1ykqpgs4z3lrkvr.png"
+                    const defaultLogo = "https://res.cloudinary.com/dcij2jfka/image/upload/v1741186742/twdxc1ykqpgs4z3lrkvr.png"
 
-                const user = c.req.user!;
-                const data = c.req.valid('form')
-                const [logoUrl, bannerUrl] = await Promise.all([
-                    this.processFile(data.logoUrl, "company-logos-testing"),
-                    this.processFile(data.bannerUrl, "company-banners-testing")
-                ]);
+                    const user = c.req.user!;
+                    const data = c.req.valid('form')
+                    const [logoUrl, bannerUrl] = await Promise.all([
+                        this.processFile(data.logoUrl, "company-banners"),
+                        this.processFile(data.bannerUrl, "company-logos")
+                    ]);
 
-                const totalCompanies = await prisma.company.count({ where: { userId: user.id } })
-                const isPremium = user.roles.includes("premiun");
-                const maxAllowed = isPremium ? MAX_COMPANIES.premium : MAX_COMPANIES.free;
+                    const totalCompanies = await prisma.company.count({ where: { userId: user.id } })
+                    const isPremium = user.roles.includes("premiun");
+                    const maxAllowed = isPremium ? MAX_COMPANIES.premium : MAX_COMPANIES.free;
 
-                if (totalCompanies >= maxAllowed) {
-                    return c.json({ message: "No se puede crear más de " + maxAllowed + " empresas" }, 400)
-                }
-
-                const company = await prisma.company.create({
-                    data: {
-                        ...data,
-                        logoUrl: logoUrl || defaultLogo,
-                        bannerUrl: bannerUrl || defaultBanner,
-                        userId: user.id,
+                    if (totalCompanies >= maxAllowed) {
+                        return c.json({ message: "No se puede crear más de " + maxAllowed + " empresas" }, 400)
                     }
-                })
 
-                return c.json(company)
+                    const company = await prisma.company.create({
+                        data: {
+                            ...data,
+                            logoUrl: logoUrl || defaultLogo,
+                            bannerUrl: bannerUrl || defaultBanner,
+                            userId: user.id,
+                        }
+                    })
+
+                    return c.json(company)
+                } catch (error) {
+                    console.error({ error });
+                }
             });
 
         router.get("/one-company-of-user/:id",
